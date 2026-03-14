@@ -1,0 +1,135 @@
+import java.io.*;
+import java.util.*;
+import java.util.stream.*;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+
+class Result {
+
+    public static List<String> crosswordPuzzle(List<String> crossword, String words) {
+        char[][] grid = new char[10][10];
+        for (int i = 0; i < 10; i++) {
+            grid[i] = crossword.get(i).toCharArray();
+        }
+        
+        String[] wordList = words.split(";");
+        boolean[] used = new boolean[wordList.length];
+        
+        solve(grid, wordList, used, 0);
+        
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            result.add(new String(grid[i]));
+        }
+        return result;
+    }
+    
+    private static boolean solve(char[][] grid, String[] words, boolean[] used, int idx) {
+        if (idx == words.length) {
+            return true;
+        }
+        
+        // Find all slots and try to place each unused word
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                // Try horizontal slot starting at (i, j)
+                if (isSlotStart(grid, i, j, true)) {
+                    int len = getSlotLength(grid, i, j, true);
+                    for (int w = 0; w < words.length; w++) {
+                        if (!used[w] && words[w].length() == len && canPlace(grid, i, j, words[w], true)) {
+                            char[] backup = placeWord(grid, i, j, words[w], true);
+                            used[w] = true;
+                            if (solve(grid, words, used, idx + 1)) {
+                                return true;
+                            }
+                            used[w] = false;
+                            restoreWord(grid, i, j, backup, true);
+                        }
+                    }
+                }
+                // Try vertical slot starting at (i, j)
+                if (isSlotStart(grid, i, j, false)) {
+                    int len = getSlotLength(grid, i, j, false);
+                    for (int w = 0; w < words.length; w++) {
+                        if (!used[w] && words[w].length() == len && canPlace(grid, i, j, words[w], false)) {
+                            char[] backup = placeWord(grid, i, j, words[w], false);
+                            used[w] = true;
+                            if (solve(grid, words, used, idx + 1)) {
+                                return true;
+                            }
+                            used[w] = false;
+                            restoreWord(grid, i, j, backup, false);
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    
+    private static boolean isSlotStart(char[][] grid, int r, int c, boolean horizontal) {
+        if (grid[r][c] == '+') return false;
+        if (horizontal) {
+            if (c > 0 && grid[r][c-1] != '+') return false; // not the start
+            if (c + 1 >= 10 || grid[r][c+1] == '+') return false; // single cell
+        } else {
+            if (r > 0 && grid[r-1][c] != '+') return false;
+            if (r + 1 >= 10 || grid[r+1][c] == '+') return false;
+        }
+        return true;
+    }
+    
+    private static int getSlotLength(char[][] grid, int r, int c, boolean horizontal) {
+        int len = 0;
+        while ((horizontal ? c : r) < 10 && grid[r][c] != '+') {
+            len++;
+            if (horizontal) c++; else r++;
+        }
+        return len;
+    }
+    
+    private static boolean canPlace(char[][] grid, int r, int c, String word, boolean horizontal) {
+        for (int i = 0; i < word.length(); i++) {
+            char cell = grid[r][c];
+            if (cell != '-' && cell != word.charAt(i)) return false;
+            if (horizontal) c++; else r++;
+        }
+        return true;
+    }
+    
+    private static char[] placeWord(char[][] grid, int r, int c, String word, boolean horizontal) {
+        char[] backup = new char[word.length()];
+        for (int i = 0; i < word.length(); i++) {
+            backup[i] = grid[r][c];
+            grid[r][c] = word.charAt(i);
+            if (horizontal) c++; else r++;
+        }
+        return backup;
+    }
+    
+    private static void restoreWord(char[][] grid, int r, int c, char[] backup, boolean horizontal) {
+        for (int i = 0; i < backup.length; i++) {
+            grid[r][c] = backup[i];
+            if (horizontal) c++; else r++;
+        }
+    }
+}
+
+public class Solution {
+    public static void main(String[] args) throws IOException {
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
+        BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(System.getenv("OUTPUT_PATH")));
+
+        List<String> crossword = IntStream.range(0, 10).mapToObj(i -> {
+            try { return bufferedReader.readLine(); } 
+            catch (IOException ex) { throw new RuntimeException(ex); }
+        }).collect(toList());
+
+        String words = bufferedReader.readLine();
+        List<String> result = Result.crosswordPuzzle(crossword, words);
+
+        bufferedWriter.write(result.stream().collect(joining("\n")) + "\n");
+        bufferedReader.close();
+        bufferedWriter.close();
+    }
+}
